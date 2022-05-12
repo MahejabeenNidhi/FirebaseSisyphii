@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,48 +12,139 @@ import RNDateTimePicker from "@react-native-community/datetimepicker";
 import { CDatePicker } from "../../components/CDatePicker";
 import CSelect from "../../components/CSelect";
 import firebase from "firebase/app";
+import "firebase/storage";
 import "firebase/auth";
 import Background from "../../components/Background";
 import { theme } from "../../core/theme";
 import CImagePicker from "../../components/CImagePicker";
+import { storage } from "../../../App";
+import { uploadImage } from "../../api/utils";
 
-function AddPetForm({ navigation }) {
-  const [values, setValues] = useState({
-    name: "",
-    dateOfBirth: new Date(),
-    species: "",
-    breed: "",
-    gender: "Male",
-    desexStatus: "Desexed",
-    vaccination: "Vaccinated",
-    homeStatus: "Adopted",
-  });
+const defaultValues = {
+  name: "",
+  dateOfBirth: new Date(),
+  species: "",
+  breed: "",
+  gender: "male",
+  desexStatus: "desexed",
+  vaccination: "vaccinated",
+  homeStatus: "at adoption centre",
+  image: "",
+};
+
+function AddPetForm({ navigation, route }) {
+  const { pet = null, petId = null } = route.params || {};
+  const [values, setValues] = useState(
+    pet
+      ? {
+          ...pet,
+          dateOfBirth: new Date(pet?.dateOfBirth?.seconds * 1000),
+        }
+      : defaultValues
+  );
   const [loading, setLoading] = useState(false);
+  const [isImageChanged, setIsImageChanged] = useState(false);
 
-  const onSubmit = () => {
-    if (Object.values(values).some((e) => !e)) {
+  useEffect(() => {
+    setValues(
+      route.params?.pet
+        ? {
+            ...route.params?.pet,
+            dateOfBirth: new Date(
+              route.params?.pet?.dateOfBirth?.seconds * 1000
+            ),
+          }
+        : defaultValues
+    );
+  }, [route.params?.pet]);
+
+  const onSubmit = async () => {
+    if (
+      Object.entries(values).some(([name, e]) =>
+        name === "image" ? false : !e
+      )
+    ) {
       alert("Please fill all the fields!");
       return;
     }
     setLoading(true);
+    let payload = { ...values };
+    delete payload.image;
+
+    if (!pet)
+      firebase
+        .firestore()
+        .collection("pets")
+        .add({
+          uid: firebase.auth().currentUser.uid,
+          ...payload,
+        })
+        .then(async (res) => {
+          if (values.image) {
+            const fetchResponse = await fetch(values.image.uri);
+            const blob = await fetchResponse.blob();
+           
+            let url = await uploadImage({
+              name: res.id,
+              image: blob,
+            });
+
+            await res.update({
+              image: url,
+            });
+          }
+
+          setValues(defaultValues);
+          navigation.navigate("PetList");
+          alert("Pet added!");
+        })
+        .finally(() => setLoading(false));
+    else
+      firebase
+        .firestore()
+        .collection("pets")
+        .doc(petId)
+        .update({
+          ...payload,
+        })
+        .then(async (res) => {
+          if (values.image && isImageChanged) {
+            const fetchResponse = await fetch(values.image.uri);
+            const blob = await fetchResponse.blob();
+            let url = await uploadImage({
+              name: petId,
+              image: blob,
+            });
+            await firebase.firestore().collection("pets").doc(petId).update({
+              image: url,
+            });
+          }
+
+          setValues(defaultValues);
+          alert("Pet Updated!");
+          navigation.navigate("PetList");
+        })
+        .finally(() => setLoading(false));
+  };
+
+  const onDelete = () => {
+    setLoading(true);
     firebase
       .firestore()
       .collection("pets")
-      .add({
-        uid: firebase.auth().currentUser.uid,
-        ...values,
-      })
+      .doc(petId)
+      .delete()
       .then((res) => {
-        alert("Pet added!");
+        alert("Pet Deleted!");
         setValues({
           name: "",
           dateOfBirth: new Date(),
           species: "",
           breed: "",
-          gender: "Male",
-          desexStatus: "Desexed",
-          vaccination: "Vaccinated",
-          homeStatus: "Adopted",
+          gender: "male",
+          desexStatus: "",
+          vaccination: "vaccinated",
+          homeStatus: "",
         });
         navigation.navigate("PetList");
       })
@@ -71,7 +162,8 @@ function AddPetForm({ navigation }) {
   return (
     <ScrollView>
       <View style={styles.container}>
-        <Text style={styles.heading}>Add a Pet</Text>
+        <Button onPress={() => navigation.goBack()}>Go Back</Button>
+        <Text style={styles.heading}>{pet ? "Edit a pet" : "Add a Pet"}</Text>
         <TextInput
           label="Name"
           returnKeyType="next"
@@ -114,20 +206,21 @@ function AddPetForm({ navigation }) {
             setValues((prev) => ({ ...prev, gender: value }))
           }
           options={[
-            { label: "Male", value: "Male" },
-            { label: "Female", value: "Female" },
+            { label: "Male", value: "male" },
+            { label: "Female", value: "female" },
           ]}
         />
 
         <CSelect
           label="Desex Status"
+          returnKeyType="next"
           value={values?.desexStatus}
           setValue={(value) =>
             setValues((prev) => ({ ...prev, desexStatus: value }))
           }
           options={[
-            { label: "Desexed", value: "Desexed" },
-            { label: "Not Desexed", value: "notDesexed" },
+            { label: "Desexed", value: "desexed" },
+            { label: "Not desexed", value: "not desexed" },
           ]}
         />
 
@@ -138,32 +231,41 @@ function AddPetForm({ navigation }) {
             setValues((prev) => ({ ...prev, vaccination: value }))
           }
           options={[
-            { label: "Vaccinated", value: "Vaccinated" },
-            { label: "Not Vaccinated", value: "notVaccinated" },
+            { label: "Vaccinated", value: "vaccinated" },
+            { label: "Not Vaccinated", value: "Not Vaccinated" },
           ]}
         />
 
         <CSelect
-          label="Homing Status"
+          label="Home Status"
           value={values?.homeStatus}
           setValue={(value) =>
             setValues((prev) => ({ ...prev, homeStatus: value }))
           }
           options={[
-            { label: "Adopted", value: "Adopted" },
-            { label: "Being Fostered", value: "beingFostered" },
-            { label: "At Adoption Centre", value: "atCentre" },
+            { label: "At adoption centre", value: "at adoption centre" },
+            { label: "Adopted", value: "adopted" },
+            { label: "Foster", value: "foster" },
           ]}
+          autoCapitalize="none"
         />
 
         <CImagePicker
           image={values.image}
-          setImage={(image) => setValues((prev) => ({ ...prev, image }))}
+          setImage={(image) => {
+            setValues((prev) => ({ ...prev, image }));
+            setIsImageChanged(true);
+          }}
         />
 
         <Button mode="contained" onPress={onSubmit} style={{ width: 300 }}>
-          Add Pet
+          {pet ? "Save" : "Add Pet"}
         </Button>
+        {pet && (
+          <Button onPress={onDelete} style={{ width: 300 }}>
+            Delete
+          </Button>
+        )}
       </View>
     </ScrollView>
   );

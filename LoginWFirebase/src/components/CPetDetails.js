@@ -21,22 +21,22 @@ export default function CPetDetails({ pet }) {
         </Paragraph>
         <Paragraph style={{ marginTop: 12 }}>Breed: {pet?.breed} </Paragraph>
         <Paragraph style={{ marginTop: 12 }}>Gender: {pet?.gender} </Paragraph>
-        <Paragraph style={{ marginTop: 12 }}>
-          Date Of Birth: {getFormattedDate(new Date(pet?.dateOfBirth?.seconds))}{" "}
+        <Paragraph styl e={{ marginTop: 12 }}>
+          Date Of Birth: {getFormattedDate(new Date(pet?.dateOfBirth?.seconds * 1000))}{" "}
         </Paragraph>
-        <Paragraph style={{ marginTop: 12 }}>
+        <Paragraph styl e={{ marginTop: 12 }}>
           Homing Status: {pet?.homeStatus}{" "}
         </Paragraph>
-        <Paragraph style={{ marginTop: 12 }}>
+        <Paragraph styl e={{ marginTop: 12 }}>
           Dessex Status: {pet?.desexStatus}{" "}
         </Paragraph>
         <Paragraph >
           Vaccinated: {pet?.vaccination},
         </Paragraph>
       </Card.Content>
-      <Card.Cover
+      <Card.Cover 
         source={{
-          uri: "https://thumbs.dreamstime.com/b/dog-collection-chihuahua-geometric-style-avatar-icon-round-set-88200175.jpg",
+          uri: pet?.image || "https://thumbs.dreamstime.com/b/dog-collection-chihuahua-geometric-style-avatar-icon-round-set-88200175.jpg",
         }}
       />
     </Card>

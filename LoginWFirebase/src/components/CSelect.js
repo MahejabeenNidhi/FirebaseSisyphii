@@ -7,7 +7,7 @@ const CSelect = ({ label, value, setValue, options = [] }) => {
       <Text style={styles.label}>{label}</Text>
       <Picker
         selectedValue={value}
-        style={{ height: 100, width: 150, }}
+        style={{ height: 30, width: 150, }}
         onValueChange={(itemValue, itemIndex) => setValue(itemValue)}
       >
         {options.map((eachOption) => {
@@ -23,12 +23,12 @@ const CSelect = ({ label, value, setValue, options = [] }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingVertical: 50,
+    paddingVertical: 20,
     alignItems: "center",
   },
   label: {
       fontSize:14,
-      marginBottom:1,
+      marginBottom:5
   }
 });
 
